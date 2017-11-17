@@ -17,17 +17,6 @@ var connection = mysql.createConnection({
 var result;
 
 var mssql = require("mssql");
-/*const pool = mssql.connect('mssql://qwerty:opbwu17fint@188.182.61.190/PetHospital')
-  var mssql_result = mssql.query("select * from Pet")
-          //const result = await sql.query`select * from mytable where id = ${value}`
-          //console.dir(result)*/
-
-var config = {
-    user: 'qwerty',
-    password: 'opbwu17fint',
-    server: '188.182.61.190', 
-    database: 'BeerCalc' 
-};
 
 mssql.connect(config, function (err) {
     if (err) console.log(err);
