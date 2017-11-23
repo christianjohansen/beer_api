@@ -27,6 +27,9 @@ var config = {
 
 mssql.connect(config, function (err) {
     if (err) console.log(err);
+  app.listen(3000, function () {
+    console.log('beer running on port 3000')
+  })
     /*var request = new mssql.Request();
     (new mssql.Request()).query('select * from test', function (err, recordset) {
         if (err) console.log(err)
@@ -35,11 +38,11 @@ mssql.connect(config, function (err) {
     });*/
 });          
 
-connection.connect(function (err,db) {
+/*connection.connect(function (err,db) {
   app.listen(3000, function () {
     console.log('beer running on port 3000')
   })
-});
+});*/
 
 // ------------------------------------------------------------------------
 
