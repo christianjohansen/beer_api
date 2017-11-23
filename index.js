@@ -18,6 +18,13 @@ var result;
 
 var mssql = require("mssql");
 
+var config = {
+    user: 'qwerty',
+    password: 'opbwu17fint',
+    server: '188.182.61.190', 
+    database: 'BeerCalc' 
+};
+
 mssql.connect(config, function (err) {
     if (err) console.log(err);
     /*var request = new mssql.Request();
@@ -82,6 +89,9 @@ app.get('/recipe/:units/:id/:volume', function (req, res) {
       res.send(recipe);
     });
   }
+})
+
+app.get('/recipe/addmalt', function (req, res) {
 })
 
 app.get('/test', function (req, res) {
