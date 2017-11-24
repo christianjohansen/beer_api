@@ -27,9 +27,9 @@ var config = {
 
 mssql.connect(config, function (err) {
     if (err) console.log(err);
-  app.listen(3000, function () {
-    console.log('beer running on port 3000')
-  })
+    /*app.listen(3000, function () {
+      console.log('beer running on port 3000')
+    })*/
     /*var request = new mssql.Request();
     (new mssql.Request()).query('select * from test', function (err, recordset) {
         if (err) console.log(err)
@@ -38,11 +38,11 @@ mssql.connect(config, function (err) {
     });*/
 });          
 
-/*connection.connect(function (err,db) {
+connection.connect(function (err,db) {
   app.listen(3000, function () {
     console.log('beer running on port 3000')
   })
-});*/
+});
 
 // ------------------------------------------------------------------------
 
@@ -77,6 +77,18 @@ test = {6:"very pale",8:"pale yellow",12:"golden",18:"amber",28:"deep amber / li
 utils = {"n/a":0,90:31,60:30,45:21,30:14,15:10,10:7,5:5,1:1,"dry":0}
 
 // ------------------------------------------------------------------------
+
+app.get('/search/:lookfor', function (req, res) {
+  var lookfor = req.params.lookfor;
+  
+  result = {};
+
+  connection.query("SELECT * FROM recipe WHERE name LIKE '%"+lookfor+"%' ", function (err1, rows1, fields1) {
+    result = rows1;
+    res.send({"recipe":result});
+
+  });
+})
 
 app.get('/recipe/:units/:id/:volume', function (req, res) {
   var units = req.params.units;
@@ -149,9 +161,9 @@ function getRecipe(res,units,id,volume) {
                 connection.query('SELECT * FROM mash WHERE recipe_id='+rows1[0].id, function (err8, rows8, fields8) {
                   result.recipe.mash = rows8;
 
-                  /*result.recipe.weight_unit = "g";
+                  result.recipe.weight_unit = "g";
                   result.recipe.liquid_unit = "l";
-                  result.recipe.temperature_unit = "C";*/
+                  result.recipe.temperature_unit = "C";
 
                   if ( volume != '-' ) calcNewVolume(result,volume); 
                   calcRecipe(result);
