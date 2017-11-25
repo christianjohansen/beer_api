@@ -16,19 +16,7 @@ var connection = mysql.createConnection({
 });
 var result;
 
-
-mssql.connect(config, function (err) {
-    if (err) console.log(err);
-    /*app.listen(3000, function () {
-      console.log('beer running on port 3000')
-    })*/
-    /*var request = new mssql.Request();
-    (new mssql.Request()).query('select * from test', function (err, recordset) {
-        if (err) console.log(err)
-        //res.send(recordset);
-      console.log(recordset);
-    });*/
-});          
+require("./sqlserver.js");
 
 connection.connect(function (err,db) {
   app.listen(3000, function () {
