@@ -1,5 +1,5 @@
 const express = require('express')
-const app = express()
+const app = express();
 const fs = require("fs");
 const convert = require('convert-units')
 var BodyParser = require("body-parser");
@@ -7,22 +7,16 @@ var BodyParser = require("body-parser");
 app.use(BodyParser.urlencoded({ extended: false }))
 app.use(BodyParser.json())
 
-var mysql = require('mysql')
-var connection = mysql.createConnection({
-  host     : 'localhost',
-  user     : 'root',
-  password : 'root',
-  database : 'beer'
-});
-var result;
+var db = require("./mysql.js");
 
-require("./sqlserver.js");
-
-connection.connect(function (err,db) {
+db.connection.connect(function (err,db) {
   app.listen(3000, function () {
-    console.log('beer running on port 3000')
+    console.log('beer listening at port 3000')
   })
 });
+
+
+
 
 // ------------------------------------------------------------------------
 
@@ -129,23 +123,23 @@ function getRecipe(res,units,id,volume) {
   };*/
   result = {};
 
-  connection.query("SELECT * FROM recipe WHERE id="+id, function (err1, rows1, fields1) {
+  db.connection.query("SELECT * FROM recipe WHERE id="+id, function (err1, rows1, fields1) {
     result.recipe = rows1[0];
-    connection.query('SELECT * FROM brewer WHERE id='+rows1[0].brewer_id, function (err2, rows2, fields2) {
+    db.connection.query('SELECT * FROM brewer WHERE id='+rows1[0].brewer_id, function (err2, rows2, fields2) {
       result.recipe.brewer = rows2[0].name;
       let sql = 'SELECT * FROM hop_used INNER JOIN hop2 ON hop2.id=hop_used.hop_id WHERE recipe_id='+rows1[0].id;
-      connection.query(sql, function (err3, rows3, fields3) {
+      db.connection.query(sql, function (err3, rows3, fields3) {
         result.recipe.hop_used = rows3;
         let sql = 'SELECT * FROM malt_used INNER JOIN malt2 ON malt2.id=malt_used.malt_id WHERE recipe_id='+rows1[0].id;
-        connection.query(sql, function (err4, rows4, fields4) {
+        db.connection.query(sql, function (err4, rows4, fields4) {
           result.recipe.malt_used = rows4;
-          connection.query('SELECT * FROM yeast WHERE id='+rows1[0].yeast_id, function (err5, rows5, fields5) {
+          db.connection.query('SELECT * FROM yeast WHERE id='+rows1[0].yeast_id, function (err5, rows5, fields5) {
             result.recipe.yeast = rows5[0].name;
-            connection.query('SELECT * FROM fermentation WHERE recipe_id='+rows1[0].id, function (err6, rows6, fields6) {
+            db.connection.query('SELECT * FROM fermentation WHERE recipe_id='+rows1[0].id, function (err6, rows6, fields6) {
               result.recipe.fermentation = rows6;
-              connection.query('SELECT * FROM beerstyle WHERE id='+rows1[0].beerstyle_id, function (err7, rows7, fields7) {
+              db.connection.query('SELECT * FROM beerstyle WHERE id='+rows1[0].beerstyle_id, function (err7, rows7, fields7) {
                 result.recipe.beerstyle = rows7[0].name;
-                connection.query('SELECT * FROM mash WHERE recipe_id='+rows1[0].id, function (err8, rows8, fields8) {
+                db.connection.query('SELECT * FROM mash WHERE recipe_id='+rows1[0].id, function (err8, rows8, fields8) {
                   result.recipe.mash = rows8;
 
                   result.recipe.weight_unit = "g";
