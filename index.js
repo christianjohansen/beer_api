@@ -134,6 +134,13 @@ app.post('/recipe', function (req, res) {
   
 })
 
+app.post('/recipe', function (req, res) { 
+  var newdoc = req.body;
+  console.log(newdoc);
+});
+
+// ------------------------------------------------------------------------
+
 function getRecipe(res,units,id,volume) {
   /*result = {
     "weight_unit":"g",
