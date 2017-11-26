@@ -52,14 +52,20 @@ utils = {"n/a":0,90:31,60:30,45:21,30:14,15:10,10:7,5:5,1:1,"dry":0}
 
 // ------------------------------------------------------------------------
 
+app.all('*', function(req, res, next) {
+  //if ( req.headers.authorization != "123" ) res.send("not authorized"); 
+  //else next()
+  next();
+});
+
 app.get('/search/:lookfor', function (req, res) {
   var lookfor = req.params.lookfor;
   
   result = {};
 
-  connection.query("SELECT * FROM recipe WHERE name LIKE '%"+lookfor+"%' ", function (err1, rows1, fields1) {
+  db.connection.query("SELECT * FROM recipe WHERE name LIKE '%"+lookfor+"%' ", function (err1, rows1, fields1) {
     result = rows1;
-    res.send({"recipe":result});
+    res.send(result);
 
   });
 })
@@ -71,7 +77,7 @@ app.get('/recipe/:units/:id/:volume', function (req, res) {
   
   if ( id != '-' ) getRecipe(res,units,id,volume);
   else {
-    var temp = connection.query('INSERT INTO recipe SET ?', {added: new Date()}, function(err, result) {
+    var temp = db.connection.query('INSERT INTO recipe SET ?', {added: new Date()}, function(err, result) {
 
       recipe.added = new Date();
       recipe.id = result.insertId;
@@ -84,6 +90,7 @@ app.get('/recipe/addmalt', function (req, res) {
 })
 
 app.get('/test', function (req, res) {
+  console.log(req.headers.authorization);
   res.send([{"test":"hans","test2":[{"a":"1"},{"a":"2"}]},{"test":"mads","test2":[{"a":"3"},{"a":"4"},{"a":"5"} ]} ]);
 })
 
@@ -101,8 +108,11 @@ app.get('/malt', function (req, res) {
 
 app.post('/recipe', function (req, res) { 
   var body = req.body;  
+  var id = body.id;
+  delete body.id;
+  console.log(body);
 
-  var temp = connection.query('INSERT INTO recipe SET ?', {added: new Date()}, function(err, result) {
+  var temp = db.connection.query('UPDATE recipe SET ? WHERE ?',[body,{"id":id}], function(err, result) {
     res.send("ok");
   })
   
@@ -112,6 +122,8 @@ app.post('/recipe', function (req, res) {
   var newdoc = req.body;
   console.log(newdoc);
 });
+
+
 
 // ------------------------------------------------------------------------
 
