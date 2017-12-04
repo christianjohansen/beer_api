@@ -53,17 +53,22 @@ utils = {"n/a":0,90:31,60:30,45:21,30:14,15:10,10:7,5:5,1:1,"dry":0}
 // ------------------------------------------------------------------------
 
 app.all('*', function(req, res, next) {
-  //if ( req.headers.authorization != "123" ) res.send("not authorized"); 
-  //else next()
-  next();
+  if ( req.headers.authorization != "Basic Y2o6YmxhYmxh" ) res.send("not authorized"); 
+  else next()
 });
 
 app.get('/search/:lookfor', function (req, res) {
   var lookfor = req.params.lookfor;
+  console.log("** "+lookfor);
+
+  var like = "";
+  var temp = lookfor.split(" ");
+  for ( a of temp ) like += " name LIKE '%"+a+"%' AND";
+  like = like.substring(0,like.length-3);
   
   result = {};
 
-  db.connection.query("SELECT * FROM recipe WHERE name LIKE '%"+lookfor+"%' ", function (err1, rows1, fields1) {
+  db.connection.query("SELECT * FROM recipe WHERE "+like, function (err1, rows1, fields1) {
     result = rows1;
     res.send(result);
 
