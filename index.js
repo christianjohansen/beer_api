@@ -15,6 +15,8 @@ db.connection.connect(function (err,db) {
   })
 });
 
+var ids;
+
 
 
 
@@ -53,27 +55,57 @@ utils = {"n/a":0,90:31,60:30,45:21,30:14,15:10,10:7,5:5,1:1,"dry":0}
 // ------------------------------------------------------------------------
 
 app.all('*', function(req, res, next) {
-  if ( req.headers.authorization != "Basic Y2o6YmxhYmxh" ) res.send("not authorized"); 
-  else next()
+  /*if ( req.headers.authorization != "Basic Y2o6YmxhYmxh" ) res.send("not authorized"); 
+  else next()*/
+  next();
 });
 
 app.get('/search/:lookfor', function (req, res) {
   var lookfor = req.params.lookfor;
-  console.log("** "+lookfor);
 
-  var like = "";
-  var temp = lookfor.split(" ");
-  for ( a of temp ) like += " name LIKE '%"+a+"%' AND";
-  like = like.substring(0,like.length-3);
-  
+  ids = [];
   result = {};
 
-  db.connection.query("SELECT * FROM recipe WHERE "+like, function (err1, rows1, fields1) {
+  db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe WHERE "+like(lookfor,'name'), function (err1, rows1, fields1) {
     result = rows1;
-    res.send(result);
+    db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN brewer ON recipe.brewer_id=brewer.id WHERE "+like(lookfor,'brewer.name'), function (err2, rows2, fields2) {
+      //result = result.concat(rows2);
+      result = mergeUnique(result,rows2);
+      db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN malt_used ON recipe.id=malt_used.recipe_id JOIN malt ON malt.id=malt_used.malt_id WHERE "+like(lookfor,'malt.name'), function (err3, rows3, fields3) {
+        //result = result.concat(rows3);
+        result = mergeUnique(result,rows3);
+        db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN hop_used ON recipe.id=hop_used.recipe_id JOIN hop ON hop.id=hop_used.hop_id WHERE "+like(lookfor,'hop.name'), function (err4, rows4, fields4) {
+          //result = result.concat(rows4);
+          result = mergeUnique(result,rows4);
+          db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN yeast ON recipe.yeast_id=yeast.id WHERE "+like(lookfor,'yeast.name'), function (err5, rows5, fields5) {
+            //result = result.concat(rows5);
+            result = mergeUnique(result,rows5);
 
+            res.send(result);
+          });
+        });
+      });
+    });
   });
 })
+
+function mergeUnique(array1,array2) {
+  for ( t of array2 ) {
+    if ( !ids[t.id] ) {
+      array1.push(t);  
+      ids[t.id] = 1
+    }
+  }
+  return array1;
+}
+
+function like(lookfor,name) {
+  var like = "";
+  var temp = lookfor.split(" ");
+  for ( a of temp ) like += " "+name+" LIKE '%"+a+"%' AND";
+  like = like.substring(0,like.length-3);
+  return like;
+}
 
 app.get('/recipe/:units/:id/:volume', function (req, res) {
   var units = req.params.units;
