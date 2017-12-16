@@ -86,30 +86,29 @@ app.get('/login', function (req, res) {
 
 app.get('/search/:lookfor', function (req, res) {
   var lookfor = req.params.lookfor;
-  if (lookfor == "*") lookfor = "";
+  if (lookfor == "*") {
+    lookfor = "";
+    sumfilter = "0";
+  }
+  else sumfilter = "sum(filter)";
 
-  ids = [];
-  result = {};
-
-  // does not work as supposed to - and in where ??
-  sql  = "SELECT id, name, count(*) FROM ( ";
-  sql += "SELECT r.id as id, r.name as name FROM recipe as r WHERE "+like(lookfor,'r.name');
+  sql  = "SELECT id, name, count(*) as rating, "+sumfilter+" as filter FROM ( ";
+  sql += "SELECT DISTINCT r.id as id, r.name as name, 1 as filter FROM recipe as r WHERE "+like(lookfor,'r.name');
   sql += " UNION ALL ";
-  sql += "SELECT r2.id as id, r2.name as name FROM recipe as r2 ";
+  sql += "SELECT DISTINCT r2.id as id, r2.name as name, 2 as filter FROM recipe as r2 ";
   sql += "JOIN brewer as b ON r2.brewer_id=b.id WHERE "+like(lookfor,'b.name');
   sql += " UNION ALL ";
-  sql += "SELECT r3.id as id, r3.name as name FROM recipe as r3 ";
+  sql += "SELECT DISTINCT r3.id as id, r3.name as name, 4 as filter FROM recipe as r3 ";
   sql += "JOIN malt_used as mu ON r3.id=mu.recipe_id JOIN malt as m ON m.id=mu.malt_id WHERE "+like(lookfor,'m.name');
   sql += " UNION ALL ";
-  sql += "SELECT r4.id as id, r4.name as name FROM recipe as r4 ";
+  sql += "SELECT DISTINCT r4.id as id, r4.name as name, 8 as filter FROM recipe as r4 ";
   sql += "JOIN hop_used as hu ON r4.id=hu.recipe_id JOIN hop as h ON h.id=hu.hop_id WHERE "+like(lookfor,'h.name');
   sql += " UNION ALL ";
-  sql += "SELECT r5.id as id, r5.name as name FROM recipe as r5 ";
+  sql += "SELECT DISTINCT r5.id as id, r5.name as name, 16 as filter FROM recipe as r5 ";
   sql += "JOIN yeast as y ON r5.yeast_id=y.id WHERE "+like(lookfor,'y.name');
   sql += " ) AS temp ";
   sql += "GROUP BY id ORDER BY count(*) DESC";
 
-//console.log("-------------------------\n"+sql);
   db.connection.query(sql, function (err1, rows1, fields1) {
     res.send(rows1);
   });
