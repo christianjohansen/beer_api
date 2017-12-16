@@ -1,6 +1,6 @@
 const express = require('express')
 const app = express();
-const fs = require("fs");
+//const fs = require("fs");
 const convert = require('convert-units')
 var BodyParser = require("body-parser");
 
@@ -14,6 +14,15 @@ db.connection.connect(function (err,db) {
     console.log('beer listening at port 3000')
   })
 });
+
+/*var db = require("./sqlserver.js");
+
+db.mssql.connect(db.config, function (err) {
+  if (err) console.log(err);
+  app.listen(3000, function () {
+    console.log('beer listening at port 3000')
+  })
+});*/
 
 var ids;
 
@@ -54,64 +63,70 @@ utils = {"n/a":0,90:31,60:30,45:21,30:14,15:10,10:7,5:5,1:1,"dry":0}
 
 // ------------------------------------------------------------------------
 
-app.all('*', function(req, res, next) {
-  /*if ( req.headers.authorization != "Basic Y2o6YmxhYmxh" ) res.send("not authorized"); 
-  else next()*/
+/*app.all('*', function(req, res, next) {
+  // only input of data should be authorized
+  //if ( req.headers.authorization != "Basic Y2o6YmxhYmxh" ) res.send("not authorized"); 
+  //else next()
   next();
+});*/
+
+app.get('/login', function (req, res) {
+  header = Buffer(req.headers.authorization.split(" ")[1],'base64').toString("ascii").split(":");
+  email = header[0];
+  password = header[1];
+
+  // password should not be in plain text ?? module credential generate and verfy salt
+  db.connection.query("SELECT * FROM brewer WHERE email='"+email+"' and password='"+password+"'", function (err, rows, fields) {
+    if ( rows !== undefined && rows.length == 1 ) res.send("hejsa");
+    else res.send("");
+  });
+
+
 });
 
 app.get('/search/:lookfor', function (req, res) {
   var lookfor = req.params.lookfor;
+  if (lookfor == "*") lookfor = "";
 
   ids = [];
   result = {};
 
-  db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe WHERE "+like(lookfor,'name'), function (err1, rows1, fields1) {
-    result = rows1;
-    db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN brewer ON recipe.brewer_id=brewer.id WHERE "+like(lookfor,'brewer.name'), function (err2, rows2, fields2) {
-      //result = result.concat(rows2);
-      result = mergeUnique(result,rows2);
-      db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN malt_used ON recipe.id=malt_used.recipe_id JOIN malt ON malt.id=malt_used.malt_id WHERE "+like(lookfor,'malt.name'), function (err3, rows3, fields3) {
-        //result = result.concat(rows3);
-        result = mergeUnique(result,rows3);
-        db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN hop_used ON recipe.id=hop_used.recipe_id JOIN hop ON hop.id=hop_used.hop_id WHERE "+like(lookfor,'hop.name'), function (err4, rows4, fields4) {
-          //result = result.concat(rows4);
-          result = mergeUnique(result,rows4);
-          db.connection.query("SELECT DISTINCT recipe.id as id, recipe.name as name FROM recipe JOIN yeast ON recipe.yeast_id=yeast.id WHERE "+like(lookfor,'yeast.name'), function (err5, rows5, fields5) {
-            //result = result.concat(rows5);
-            result = mergeUnique(result,rows5);
+  // does not work as supposed to - and in where ??
+  sql  = "SELECT id, name, count(*) FROM ( ";
+  sql += "SELECT r.id as id, r.name as name FROM recipe as r WHERE "+like(lookfor,'r.name');
+  sql += " UNION ALL ";
+  sql += "SELECT r2.id as id, r2.name as name FROM recipe as r2 ";
+  sql += "JOIN brewer as b ON r2.brewer_id=b.id WHERE "+like(lookfor,'b.name');
+  sql += " UNION ALL ";
+  sql += "SELECT r3.id as id, r3.name as name FROM recipe as r3 ";
+  sql += "JOIN malt_used as mu ON r3.id=mu.recipe_id JOIN malt as m ON m.id=mu.malt_id WHERE "+like(lookfor,'m.name');
+  sql += " UNION ALL ";
+  sql += "SELECT r4.id as id, r4.name as name FROM recipe as r4 ";
+  sql += "JOIN hop_used as hu ON r4.id=hu.recipe_id JOIN hop as h ON h.id=hu.hop_id WHERE "+like(lookfor,'h.name');
+  sql += " UNION ALL ";
+  sql += "SELECT r5.id as id, r5.name as name FROM recipe as r5 ";
+  sql += "JOIN yeast as y ON r5.yeast_id=y.id WHERE "+like(lookfor,'y.name');
+  sql += " ) AS temp ";
+  sql += "GROUP BY id ORDER BY count(*) DESC";
 
-            res.send(result);
-          });
-        });
-      });
-    });
+//console.log("-------------------------\n"+sql);
+  db.connection.query(sql, function (err1, rows1, fields1) {
+    res.send(rows1);
   });
+
 })
-
-function mergeUnique(array1,array2) {
-  for ( t of array2 ) {
-    if ( !ids[t.id] ) {
-      array1.push(t);  
-      ids[t.id] = 1
-    }
-  }
-  return array1;
-}
-
-function like(lookfor,name) {
-  var like = "";
-  var temp = lookfor.split(" ");
-  for ( a of temp ) like += " "+name+" LIKE '%"+a+"%' AND";
-  like = like.substring(0,like.length-3);
-  return like;
-}
 
 app.get('/recipe/:units/:id/:volume', function (req, res) {
   var units = req.params.units;
   var id = req.params.id;
   var volume = req.params.volume;
+  if ( units == "us" ) volume = volume * 3.79; // ref volume is in metric. conversion is after new volume 
   
+  getRecipe(res,units,id,volume);
+})
+
+
+  /*
   if ( id != '-' ) getRecipe(res,units,id,volume);
   else {
     var temp = db.connection.query('INSERT INTO recipe SET ?', {added: new Date()}, function(err, result) {
@@ -120,11 +135,7 @@ app.get('/recipe/:units/:id/:volume', function (req, res) {
       recipe.id = result.insertId;
       res.send(recipe);
     });
-  }
-})
-
-app.get('/recipe/addmalt', function (req, res) {
-})
+  }*/
 
 app.get('/test', function (req, res) {
   console.log(req.headers.authorization);
@@ -132,18 +143,20 @@ app.get('/test', function (req, res) {
 })
 
 app.get('/hop', function (req, res) {
-  (new mssql.Request()).query('SELECT id,name FROM hop', function (err, rows, fields) {
+  (new db.mssql.Request()).query('SELECT id,name FROM hop', function (err, rows, fields) {
     res.send(rows.recordset);
   })
 })
 
 app.get('/malt', function (req, res) {
-  connection.query('SELECT id,name FROM malt', function (err, rows, fields) {
+  (new db.mssql.Request()).query('SELECT id,name FROM malt', function (err, rows, fields) {
     res.send(rows);
   })
 })
 
 app.post('/recipe', function (req, res) { 
+  console(req.headers.authorization); // != "Basic Y2o6YmxhYmxh"  
+  // need to be loggedin
   var body = req.body;  
   var id = body.id;
   delete body.id;
@@ -175,7 +188,7 @@ function getRecipe(res,units,id,volume) {
   db.connection.query("SELECT * FROM recipe WHERE id="+id, function (err1, rows1, fields1) {
     result.recipe = rows1[0];
     db.connection.query('SELECT * FROM brewer WHERE id='+rows1[0].brewer_id, function (err2, rows2, fields2) {
-      result.recipe.brewer = rows2[0].name;
+      if ( rows2.length > 0 ) result.recipe.brewer = rows2[0].name;
       let sql = 'SELECT * FROM hop_used INNER JOIN hop2 ON hop2.id=hop_used.hop_id WHERE recipe_id='+rows1[0].id;
       db.connection.query(sql, function (err3, rows3, fields3) {
         result.recipe.hop_used = rows3;
@@ -183,11 +196,11 @@ function getRecipe(res,units,id,volume) {
         db.connection.query(sql, function (err4, rows4, fields4) {
           result.recipe.malt_used = rows4;
           db.connection.query('SELECT * FROM yeast WHERE id='+rows1[0].yeast_id, function (err5, rows5, fields5) {
-            result.recipe.yeast = rows5[0].name;
+            if ( rows2.length > 0 ) result.recipe.yeast = rows5[0].name;
             db.connection.query('SELECT * FROM fermentation WHERE recipe_id='+rows1[0].id, function (err6, rows6, fields6) {
               result.recipe.fermentation = rows6;
               db.connection.query('SELECT * FROM beerstyle WHERE id='+rows1[0].beerstyle_id, function (err7, rows7, fields7) {
-                result.recipe.beerstyle = rows7[0].name;
+                if ( rows7.length > 0 ) result.recipe.beerstyle = rows7[0].name;
                 db.connection.query('SELECT * FROM mash WHERE recipe_id='+rows1[0].id, function (err8, rows8, fields8) {
                   result.recipe.mash = rows8;
 
@@ -211,6 +224,14 @@ function getRecipe(res,units,id,volume) {
 
 }
 
+function like(lookfor,name) {
+  var like = "";
+  var temp = lookfor.split(" ");
+  for ( a of temp ) like += " "+name+" LIKE '%"+a+"%' OR";
+  like = like.substring(0,like.length-3);
+  return like;
+}
+
 function calcRecipe(data) {
   calcMalt(data); // malt before hop because some of the output is used in hop2
   calcHop(data);
@@ -224,24 +245,31 @@ function convertToUnits(data,to) {
   data.recipe.temperature_unit = temp[to][2];
   data.origin = to;
   data.recipe.volume = Number(convert( data.recipe.volume ).from(temp[data.recipe.units][0]).to(temp[to][0]).toFixed(1)); 
-  for ( hop of data.recipe.hop_used ) hop.weight = Number(convert( hop.weight ).from(temp[data.recipe.units][1]).to(temp[to][1]).toFixed(1));
-  for ( malt of data.recipe.malt_used ) malt.weight = Number(convert( malt.weight ).from(temp[data.recipe.units][1]).to(temp[to][1]).toFixed(1));
-  for ( ferment of data.recipe.fermentation ) ferment.temperature = Math.round(convert( ferment.temperature ).from(temp[data.recipe.units][2]).to(temp[to][2]));
-  for ( mash of data.recipe.mash ) mash.temperature = Math.round(convert( mash.temperature ).from(temp[data.recipe.units][2]).to(temp[to][2]));
+  for ( hop of data.recipe.hop_used ) {
+    hop.weight = Number(convert( hop.weight ).from(temp[data.recipe.units][1]).to(temp[to][1]).toFixed(1));
+  }
+  for ( malt of data.recipe.malt_used ) {
+    malt.weight = Number(convert( malt.weight ).from(temp[data.recipe.units][1]).to(temp[to][1]).toFixed(1));
+  }
+  for ( ferment of data.recipe.fermentation ) {
+    ferment.temperature = Math.round(convert( ferment.temperature ).from(temp[data.recipe.units][2]).to(temp[to][2]));
+  }
+  for ( mash of data.recipe.mash ) {
+    mash.temperature = Math.round(convert( mash.temperature ).from(temp[data.recipe.units][2]).to(temp[to][2]));
+  }
 }
 
-function calcHop(data) {
-  total_bitterness = 0;
-  
-  for ( hop of data.recipe.hop_used ) {
     //u = 1.65*Math.pow(0.000125, ((a.bg.value / 1000) - 1) )*(1-Math.exp(-0.04* boiltime ))/4.15;
     //a.util[i].value = parseInt(u * 1000 + 0.5) / 10;
     // ( ( 1.65 * Math.pow(0.000125, ((data.recipe.total_malt_gravity / 1000) - 1) ) * (1 - Math.exp( -0.04 * hop.boil )) / 4.15 ) * 1000 + 0.5 ) / 10;
 
-    hop.utilisation = utils[hop.boil];
     // IBU = hops(g) * alpha(%) x utilisation(%) / (volume(L) * 10)
-    hop.bitterness = Number( ( hop.weight * hop.alpha * hop.utilisation / (data.recipe.volume * 10) ).toFixed() );
 
+function calcHop(data) {
+  total_bitterness = 0;  
+  for ( hop of data.recipe.hop_used ) {
+    hop.utilisation = utils[hop.boil];
+    hop.bitterness = Number( ( hop.weight * hop.alpha * hop.utilisation / (data.recipe.volume * 10) ).toFixed() );
     total_bitterness += hop.bitterness;
   }  
   data.recipe.total_bitterness = total_bitterness;
@@ -252,12 +280,8 @@ function calcMalt(data) {
   total_gravity = 1000;
   total_colour = 0;
   for ( malt of data.recipe.malt_used ) {
-    // g = (a.weight[i].value * gravfactor[m] * eff / 100000 / a.volume.value);
     malt.gravity = Math.round( 1000 + malt.weight * malt.gravity_factor * data.recipe.efficiency / 100000 / data.recipe.volume );
-    // 4.232
-    // precise_mcu = (a.weight[i].value / 1000 * a.col[i].value / a.volume.value * mcu_from_ebc);
     malt.colour = Number( ( malt.weight / 1000 * malt.ebc / data.recipe.volume * 4.232 ).toFixed(1) );
-
     total_weight += malt.weight;
     total_gravity += (malt.gravity - 1000);
     total_colour += malt.colour;
@@ -275,6 +299,11 @@ function calcMalt(data) {
     }
   }  
 }
+
+    // g = (a.weight[i].value * gravfactor[m] * eff / 100000 / a.volume.value);
+    // 4.232
+    // precise_mcu = (a.weight[i].value / 1000 * a.col[i].value / a.volume.value * mcu_from_ebc);
+
 
 function calcNewVolume(data,new_volume) {
   ratio = data.recipe.volume / new_volume;
